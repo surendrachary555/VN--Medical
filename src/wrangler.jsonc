@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vn--medical",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-10",
+  "assets": {
+    "directory": "."
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "vn-medical-db",
+      "database_id": "2979e60a-1a6f-434c-9a90-356b75a08aab"
+    }
+  ]
+}
