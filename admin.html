@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VN Medical — Admin</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f6f8fb;color:#172033}
+header{background:#fff;border-bottom:1px solid #e7ebf0;padding:18px 20px}
+.wrap{max-width:1100px;margin:auto}
+.brand{font-size:25px;font-weight:800}.brand span{color:#176fe5}
+h1{margin:28px 0 8px}.muted{color:#667286}
+.panel{background:#fff;border:1px solid #e3e8ef;border-radius:16px;padding:22px;margin:20px 0}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+input,select{width:100%;padding:12px;border:1px solid #dce3ec;border-radius:9px;font-size:15px}
+button{border:0;border-radius:9px;padding:11px 16px;font-weight:700;cursor:pointer}
+.primary{background:#176fe5;color:#fff}.danger{background:#d83a3a;color:#fff}.secondary{background:#e9edf3}
+.actions{display:flex;gap:10px;margin-top:16px}
+table{width:100%;border-collapse:collapse;margin-top:15px}
+th,td{text-align:left;padding:12px 8px;border-bottom:1px solid #edf0f4;font-size:14px}
+.status{padding:5px 9px;border-radius:20px;font-size:12px;font-weight:700}
+.in{background:#e7f8ed;color:#16733a}.limited{background:#fff4dc;color:#9a6500}.out{background:#fdeaea;color:#a52c2c}
+#login,#dashboard{max-width:700px;margin:50px auto}
+#dashboard{max-width:1100px}
+.error{color:#a52c2c}.success{color:#16733a}
+@media(max-width:650px){.grid{grid-template-columns:1fr}table{display:block;overflow-x:auto;white-space:nowrap}}
+</style>
+</head>
+
+<body>
+
+<header>
+<div class="wrap">
+<div class="brand">VN <span>Medical</span> — Admin</div>
+</div>
+</header>
+
+<div id="login" class="panel">
+<h1>Admin Login</h1>
+<p class="muted">Manage VN Medical medicine inventory.</p>
+
+<input id="password" type="password" placeholder="Admin password">
+
+<div class="actions">
+<button class="primary" onclick="login()">Login</button>
+<a href="/" style="text-decoration:none">
+<button class="secondary">Customer Website</button>
+</a>
+</div>
+
+<p id="loginMessage"></p>
+</div>
+
+
+<div id="dashboard" style="display:none">
+
+<div class="panel">
+
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+<div>
+<h1 style="margin:0">Medicine Inventory</h1>
+<p class="muted">Add or update medicines. Customers will see the database values.</p>
+</div>
+
+<button class="secondary" onclick="logout()">Logout</button>
+</div>
+
+</div>
+
+
+<div class="panel">
+
+<h2 id="formTitle">Add Medicine</h2>
+
+<input type="hidden" id="medicineId">
+
+<div class="grid">
+
+<div>
+<label>Medicine Name</label>
+<input id="name" placeholder="Example: Paracetamol 500mg">
+</div>
+
+<div>
+<label>Price</label>
+<input id="price" type="number" step="0.01" placeholder="25">
+</div>
+
+<div>
+<label>Dosage / Strength</label>
+<input id="strength" placeholder="500 mg">
+</div>
+
+<div>
+<label>Manufacturer</label>
+<input id="manufacturer" placeholder="Manufacturer name">
+</div>
+
+<div>
+<label>Quantity</label>
+<input id="quantity" type="number" min="0" placeholder="50">
+</div>
+
+<div>
+<label>Prescription Required</label>
+<select id="prescription">
+<option value="No">No</option>
+<option value="Yes">Yes</option>
+</select>
+</div>
+
+</div>
+
+<div class="actions">
+<button class="primary" onclick="saveMedicine()">Save Medicine</button>
+<button class="secondary" onclick="clearForm()">Clear</button>
+</div>
+
+<p id="formMessage"></p>
+
+</div>
+
+
+<div class="panel">
+
+<h2>Current Medicines</h2>
+
+<div id="loading">Loading...</div>
+
+<table id="medicineTable" style="display:none">
+
+<thead>
+<tr>
+<th>Medicine</th>
+<th>Price</th>
+<th>Strength</th>
+<th>Manufacturer</th>
+<th>Quantity</th>
+<th>Status</th>
+<th>Actions</th>
+</tr>
+</thead>
+
+<tbody id="medicineBody"></tbody>
+
+</table>
+
+</div>
+
+</div>
+
+
+<script>
+
+let token = localStorage.getItem("vn_admin_token") || "";
+
+function apiHeaders(){
+return {
+"Content-Type":"application/json",
+"Authorization":"Bearer " + token
+};
+}
+
+
+async function login(){
+
+const password=document.getElementById("password").value;
+
+if(!password){
+document.getElementById("loginMessage").textContent="Enter your password.";
+return;
+}
+
+try{
+
+const response=await fetch("/api/admin/login",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({password})
+});
+
+const data=await response.json();
+
+if(!response.ok){
+document.getElementById("loginMessage").className="error";
+document.getElementById("loginMessage").textContent=data.error || "Login failed.";
+return;
+}
+
+token=data.token;
+
+localStorage.setItem("vn_admin_token",token);
+
+document.getElementById("login").style.display="none";
+document.getElementById("dashboard").style.display="block";
+
+loadMedicines();
+
+}catch(error){
+
+document.getElementById("loginMessage").className="error";
+document.getElementById("loginMessage").textContent="Could not connect to the server.";
+
+}
+
+}
+
+
+function logout(){
+
+token="";
+
+localStorage.removeItem("vn_admin_token");
+
+location.reload();
+
+}
+
+
+async function loadMedicines(){
+
+document.getElementById("loading").style.display="block";
+document.getElementById("medicineTable").style.display="none";
+
+try{
+
+const response=await fetch("/api/medicines",{
+cache:"no-store"
+});
+
+const medicines=await response.json();
+
+const body=document.getElementById("medicineBody");
+
+body.innerHTML="";
+
+medicines.forEach(m=>{
+
+const tr=document.createElement("tr");
+
+tr.innerHTML=`
+
+<td><b>${escapeHtml(m.name)}</b></td>
+
+<td>₹${Number(m.price || 0).toFixed(2)}</td>
+
+<td>${escapeHtml(m.strength || "")}</td>
+
+<td>${escapeHtml(m.manufacturer || "")}</td>
+
+<td>${m.quantity}</td>
+
+<td>
+<span class="status ${statusClass(m.availability)}">
+${escapeHtml(m.availability)}
+</span>
+</td>
+
+<td>
+
+<button class="secondary"
+onclick='editMedicine(${JSON.stringify(m)})'>
+Edit
+</button>
+
+<button class="danger"
+onclick="deleteMedicine(${m.id})">
+Delete
+</button>
+
+</td>
+`;
+
+body.appendChild(tr);
+
+});
+
+document.getElementById("loading").style.display="none";
+document.getElementById("medicineTable").style.display="table";
+
+}catch(error){
+
+document.getElementById("loading").textContent="Could not load medicines.";
+
+}
+
+}
+
+
+async function saveMedicine(){
+
+const id=document.getElementById("medicineId").value;
+
+const medicine={
+
+id:id ? Number(id) : undefined,
+
+name:document.getElementById("name").value.trim(),
+
+price:Number(document.getElementById("price").value || 0),
+
+strength:document.getElementById("strength").value.trim(),
+
+manufacturer:document.getElementById("manufacturer").value.trim(),
+
+quantity:Number(document.getElementById("quantity").value || 0),
+
+prescription_required:document.getElementById("prescription").value
+
+};
+
+if(!medicine.name){
+
+showMessage("Enter a medicine name.","error");
+return;
+
+}
+
+const method=id ? "PUT" : "POST";
+
+try{
+
+const response=await fetch("/api/admin/medicines",{
+
+method:method,
+
+headers:apiHeaders(),
+
+body:JSON.stringify(medicine)
+
+});
+
+const data=await response.json();
+
+if(!response.ok){
+
+showMessage(data.error || "Could not save medicine.","error");
+return;
+
+}
+
+showMessage("Medicine saved successfully.","success");
+
+clearForm();
+
+loadMedicines();
+
+}catch(error){
+
+showMessage("Could not connect to the server.","error");
+
+}
+
+}
+
+
+function editMedicine(m){
+
+document.getElementById("medicineId").value=m.id;
+
+document.getElementById("name").value=m.name || "";
+
+document.getElementById("price").value=m.price || "";
+
+document.getElementById("strength").value=m.strength || "";
+
+document.getElementById("manufacturer").value=m.manufacturer || "";
+
+document.getElementById("quantity").value=m.quantity || 0;
+
+document.getElementById("prescription").value=m.prescription_required || "No";
+
+document.getElementById("formTitle").textContent="Edit Medicine";
+
+window.scrollTo({top:0,behavior:"smooth"});
+
+}
+
+
+async function deleteMedicine(id){
+
+if(!confirm("Delete this medicine?")) return;
+
+try{
+
+const response=await fetch("/api/admin/medicines?id="+id,{
+
+method:"DELETE",
+
+headers:apiHeaders()
+
+});
+
+const data=await response.json();
+
+if(!response.ok){
+
+alert(data.error || "Could not delete medicine.");
+return;
+
+}
+
+loadMedicines();
+
+}catch(error){
+
+alert("Could not connect to the server.");
+
+}
+
+}
+
+
+function clearForm(){
+
+document.getElementById("medicineId").value="";
+
+document.getElementById("name").value="";
+
+document.getElementById("price").value="";
+
+document.getElementById("strength").value="";
+
+document.getElementById("manufacturer").value="";
+
+document.getElementById("quantity").value="";
+
+document.getElementById("prescription").value="No";
+
+document.getElementById("formTitle").textContent="Add Medicine";
+
+}
+
+
+function showMessage(message,type){
+
+const el=document.getElementById("formMessage");
+
+el.className=type;
+
+el.textContent=message;
+
+setTimeout(()=>el.textContent="",3000);
+
+}
+
+
+function statusClass(status){
+
+const s=String(status || "").toLowerCase();
+
+if(s.includes("out")) return "out";
+
+if(s.includes("limited")) return "limited";
+
+return "in";
+
+}
+
+
+function escapeHtml(value){
+
+return String(value ?? "").replace(/[&<>"']/g,function(c){
+
+return {
+"&":"&amp;",
+"<":"&lt;",
+">":"&gt;",
+'"':"&quot;",
+"'":"&#39;"
+}[c];
+
+});
+
+}
+
+
+// Automatically restore an existing login session
+if(token){
+
+document.getElementById("login").style.display="none";
+document.getElementById("dashboard").style.display="block";
+
+loadMedicines();
+
+}
+
+</script>
+
+</body>
+</html>
