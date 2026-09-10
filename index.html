@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="VN Medical medicine search and availability website.">
+<title>VN Medical — Medicine Search</title>
+<style>
+* { box-sizing:border-box; }
+body { margin:0; font-family:Arial,Helvetica,sans-serif; background:#f6f8fb; color:#172033; }
+header { background:#fff; border-bottom:1px solid #e7ebf0; position:sticky; top:0; z-index:10; }
+.nav { max-width:1100px; margin:auto; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
+.brand { font-size:24px; font-weight:800; }
+.brand span { color:#1d73e8; }
+.badge { font-size:12px; background:#eaf3ff; color:#1767c4; padding:7px 10px; border-radius:20px; }
+.hero { background:linear-gradient(135deg,#eaf4ff,#fff); padding:55px 20px 45px; text-align:center; }
+.hero h1 { margin:0 0 12px; font-size:42px; }
+.hero p { color:#596579; font-size:17px; margin:0 auto 25px; max-width:650px; }
+.search { max-width:760px; margin:auto; display:flex; background:#fff; border:1px solid #dce3ec; border-radius:14px; padding:7px; box-shadow:0 8px 25px rgba(30,50,80,.08); }
+.search input { flex:1; border:0; outline:0; padding:15px; font-size:16px; }
+.search button { border:0; border-radius:10px; padding:0 24px; background:#176fe5; color:white; font-weight:700; cursor:pointer; }
+main { max-width:1100px; margin:auto; padding:30px 20px 60px; }
+.topline { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; gap:15px; }
+.topline h2 { margin:0; }
+#count { color:#697589; font-size:14px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:18px; }
+.card { background:#fff; border:1px solid #e3e8ef; border-radius:16px; padding:20px; box-shadow:0 4px 16px rgba(30,50,80,.04); }
+.name { font-size:19px; font-weight:800; margin-bottom:8px; }
+.meta { color:#667286; font-size:14px; line-height:1.7; }
+.price { font-size:20px; font-weight:800; margin:14px 0; }
+.status { display:inline-block; padding:6px 10px; border-radius:20px; font-size:12px; font-weight:700; margin-bottom:15px; }
+.in { background:#e7f8ed; color:#16733a; }
+.limited { background:#fff4dc; color:#9a6500; }
+.out { background:#fdeaea; color:#a52c2c; }
+.request { width:100%; border:0; padding:11px; border-radius:10px; background:#172033; color:#fff; font-weight:700; cursor:pointer; }
+.empty { text-align:center; padding:45px 20px; color:#697589; background:#fff; border:1px dashed #ccd5e1; border-radius:16px; }
+footer { background:#172033; color:#dbe2ed; text-align:center; padding:25px 20px; font-size:13px; }
+.notice { margin-top:15px; font-size:12px; color:#697589; }
+@media(max-width:650px) {
+ .hero h1 { font-size:32px; }
+ .search { flex-direction:column; background:transparent; border:0; box-shadow:none; gap:8px; }
+ .search input,.search button { min-height:50px; border-radius:10px; }
+ .search input { border:1px solid #dce3ec; }
+ .search button { padding:12px; }
+}
+</style>
+</head>
+<body>
+<header><div class="nav"><div class="brand">VN <span>Medical</span></div><div class="badge">Sample inventory demo</div></div></header>
+<section class="hero">
+<h1>Find your medicine</h1>
+<p>Search VN Medical's inventory to check medicine details and current availability.</p>
+<div class="search">
+<input id="search" placeholder="Search by medicine name, strength or manufacturer..." autocomplete="off">
+<button onclick="render()">Search</button>
+</div>
+<div class="notice">Availability shown here is based on the sample inventory uploaded for testing.</div>
+</section>
+<main>
+<div class="topline"><h2>Medicines</h2><div id="count"></div></div>
+<div id="results" class="grid"></div>
+</main>
+<footer>VN Medical · Medicine availability search · Demo website</footer>
+
+<script>
+const inventory = [{"Medicine Name": "Paracetamol 500mg", "Price": 25, "Dosage/Strength": "500 mg", "Manufacturer": "Sample Pharma", "Quantity": 50, "Availability": "In Stock", "Prescription Required": "No"}, {"Medicine Name": "Cetirizine 10mg", "Price": 18, "Dosage/Strength": "10 mg", "Manufacturer": "Sample Pharma", "Quantity": 30, "Availability": "In Stock", "Prescription Required": "No"}, {"Medicine Name": "Amoxicillin 500mg", "Price": 120, "Dosage/Strength": "500 mg", "Manufacturer": "Sample Pharma", "Quantity": 12, "Availability": "Limited Stock", "Prescription Required": "Yes"}, {"Medicine Name": "Omeprazole 20mg", "Price": 45, "Dosage/Strength": "20 mg", "Manufacturer": "Sample Pharma", "Quantity": 0, "Availability": "Out of Stock", "Prescription Required": "No"}, {"Medicine Name": "Vitamin C 500mg", "Price": 60, "Dosage/Strength": "500 mg", "Manufacturer": "Sample Pharma", "Quantity": 25, "Availability": "In Stock", "Prescription Required": "No"}, {"Medicine Name": "Ibuprofen 400mg", "Price": 35, "Dosage/Strength": "400 mg", "Manufacturer": "Sample Pharma", "Quantity": 8, "Availability": "Limited Stock", "Prescription Required": "No"}];
+
+function esc(v) {
+ return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function statusClass(s) {
+ const x = String(s || '').toLowerCase();
+ if (x.includes('out')) return 'out';
+ if (x.includes('limited')) return 'limited';
+ return 'in';
+}
+
+function requestMedicine(name) {
+ const subject = encodeURIComponent('Medicine request - ' + name);
+ const body = encodeURIComponent('Hello VN Medical, I would like to request/check availability for: ' + name);
+ window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
+}
+
+function render() {
+ const q = document.getElementById('search').value.trim().toLowerCase();
+ const found = inventory.filter(m => Object.values(m).some(v => String(v ?? '').toLowerCase().includes(q)));
+ document.getElementById('count').textContent = found.length + ' result' + (found.length === 1 ? '' : 's');
+ const el = document.getElementById('results');
+
+ if (!found.length) {
+   el.className=''; el.innerHTML='<div class="empty">No matching medicine found. Try another medicine name or strength.</div>';
+   return;
+ }
+ el.className='grid';
+ el.innerHTML = found.map(m => `
+   <article class="card">
+     <div class="name">${esc(m['Medicine Name'])}</div>
+     <div class="status ${statusClass(m['Availability'])}">${esc(m['Availability'])}</div>
+     <div class="meta"><b>Strength:</b> ${esc(m['Dosage/Strength'])}<br>
+     <b>Manufacturer:</b> ${esc(m['Manufacturer'])}<br>
+     <b>Quantity:</b> ${esc(m['Quantity'])}<br>
+     <b>Prescription:</b> ${esc(m['Prescription Required'])}</div>
+     <div class="price">₹${Number(m['Price'] || 0).toFixed(2)}</div>
+     <button class="request" onclick="requestMedicine('${esc(m['Medicine Name'])}')">Request / Contact Shop</button>
+   </article>`).join('');
+}
+document.getElementById('search').addEventListener('input', render);
+render();
+</script>
+</body>
+</html>
