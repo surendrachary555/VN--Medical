@@ -116,7 +116,7 @@ export default {
   }, 401);
 }
 
-        const token = await makeToken(env.ADMIN_PASSWORD);
+        const token = await makeToken(String(env.ADMIN_PASSWORD));
 
         return json({
           success: true,
