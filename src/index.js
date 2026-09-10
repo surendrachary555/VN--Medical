@@ -106,9 +106,15 @@ export default {
           return json({ error: "Password required" }, 400);
         }
 
-        if (body.password !== env.ADMIN_PASSWORD) {
-          return json({ error: "Invalid password" }, 401);
-        }
+       if (String(body.password).trim() !== String(env.ADMIN_PASSWORD).trim()) {
+  return json({
+    error: "Invalid password",
+    debug: {
+      passwordReceived: !!body.password,
+      secretConfigured: !!env.ADMIN_PASSWORD
+    }
+  }, 401);
+}
 
         const token = await makeToken(env.ADMIN_PASSWORD);
 
