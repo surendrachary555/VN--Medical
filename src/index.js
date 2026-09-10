@@ -2,7 +2,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // Medicine search API
+    // Live medicine search API
     if (url.pathname === "/api/medicines") {
       const search = (url.searchParams.get("search") || "").trim();
 
@@ -30,14 +30,24 @@ export default {
       return Response.json(result.results);
     }
 
-    // Health check
+    // Database/API health check
     if (url.pathname === "/api/health") {
-      return Response.json({
-        ok: true,
-        database: "connected"
-      });
+      try {
+        await env.DB.prepare("SELECT 1").first();
+
+        return Response.json({
+          ok: true,
+          database: "connected"
+        });
+      } catch (error) {
+        return Response.json({
+          ok: false,
+          database: "error"
+        }, { status: 500 });
+      }
     }
 
-    return new Response("VN Medical API is running");
+    // Serve the existing VN Medical website
+    return env.ASSETS.fetch(request);
   }
 };
